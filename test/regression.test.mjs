@@ -125,3 +125,51 @@ test('parallel quota refreshes retain both account catalogs and disabled models 
   assert.ok(saved.catalogModels.some(m => m.id === 'gemini-9-beta'));
   assert.equal(saved.enabledModelIds.length, 0);
 });
+
+test('missing quota is unknown while explicit zero is preserved', async t => {
+  const { api, Pool } = await fixture(t, async url => json(url.includes('retrieveUserQuotaSummary') ? {
+    groups: [{ displayName: 'Claude and GPT models', buckets: [
+      { bucketId: 'weekly', displayName: 'Weekly', remainingFraction: 0.395 },
+      { bucketId: 'five-hour', displayName: 'Five Hour' },
+      { bucketId: 'zero', displayName: 'Zero', remainingFraction: 0 },
+    ] }],
+  } : { models: {} }));
+  const pool = new Pool();
+  await pool.addOrUpdateAccount(credential('a'));
+  const result = await api.fetchQuotaForAccount(pool.allAccounts[0], pool);
+  const buckets = result.groups[0].buckets;
+  assert.equal(buckets[0].remainingFraction, 0.395);
+  assert.equal(buckets[1].remainingFraction, null);
+  assert.equal(buckets[2].remainingFraction, 0);
+});
+
+test('refresh failure is visible per account and keeps last successful timestamp', async t => {
+  let fail = false;
+  const { api, Pool } = await fixture(t, async url => {
+    if (fail) throw new Error('upstream unavailable');
+    return json(url.includes('retrieveUserQuotaSummary') ? quota(0.8) : { models: {} });
+  });
+  const pool = new Pool();
+  await pool.addOrUpdateAccount(credential('a'));
+  const account = pool.allAccounts[0];
+  const first = await api.fetchQuotaForAccount(account, pool);
+  fail = true;
+  await assert.rejects(api.fetchQuotaForAccount(account, pool));
+  const failed = (await pool.getStatus()).accounts[0];
+  assert.match(failed.quotaError, /upstream unavailable/);
+  assert.equal(failed.quota.fetchedAt, first.fetchedAt);
+  assert.equal(failed.quotaStale, true);
+  fail = false;
+  await api.fetchQuotaForAccount(account, pool);
+  assert.equal((await pool.getStatus()).accounts[0].quotaError, null);
+});
+
+test('old cached zeros are not asserted as measured zeros after upgrade', async t => {
+  const { Pool } = await fixture(t);
+  const pool = new Pool();
+  await pool.addOrUpdateAccount(credential('a'));
+  await pool.updateAccountQuota(pool.allAccounts[0].id, { ...quota(0), fetchedAt: Date.now() });
+  const account = (await pool.getStatus()).accounts[0];
+  assert.equal(account.quota.groups[0].buckets[0].remainingFraction, null);
+  assert.equal(account.quotaStale, true);
+});
