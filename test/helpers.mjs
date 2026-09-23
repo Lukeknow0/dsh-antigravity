@@ -3,15 +3,15 @@ import { readFile, mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-export async function fixture(t, fetchImpl) {
+export async function fixture(t, fetchImpl, env = {}) {
   const home = await mkdtemp(join(tmpdir(), 'antigravity-test-'));
   t.after(() => rm(home, { recursive: true, force: true }));
   let callback;
   const context = vm.createContext({
     Buffer, URL, URLSearchParams, TextDecoder, Uint8Array, AbortController,
     AbortSignal: { any: AbortSignal.any.bind(AbortSignal), timeout: () => AbortSignal.timeout(20) },
-    setTimeout, clearTimeout, console: { log() {}, warn() {}, error() {} },
-    process: { env: {}, platform: process.platform },
+    setTimeout, clearTimeout, console: { log() {}, info() {}, warn() {}, error() {} },
+    process: { env, platform: process.platform },
     fetch: (...args) => fetchImpl(...args),
   });
   const cache = new Map();
