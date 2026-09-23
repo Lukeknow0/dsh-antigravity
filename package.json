@@ -1,6 +1,6 @@
 {
   "name": "dsh-antigravity",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Google Antigravity / Cloud Code Assist model provider for DeepSeek Harness",
   "type": "module",
   "main": "lib/index.js",
@@ -36,7 +36,8 @@
   },
   "scripts": {
     "check": "node --check lib/index.js && node --check lib/client.js && node --check lib/pool.js && node --check lib/image-tool.js && node --check bin/antigravity-login.mjs",
-    "pack:dist": "mkdir -p dist && npm pack --pack-destination dist"
+    "pack:dist": "mkdir -p dist && npm pack --pack-destination dist",
+    "test": "node --experimental-vm-modules --test test/*.test.mjs"
   },
   "engines": {
     "node": ">=20"
