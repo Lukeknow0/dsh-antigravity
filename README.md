@@ -9,26 +9,30 @@ English | [简体中文](./README.zh.md)
 Google Antigravity / Cloud Code Assist model provider for
 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness).
 
-This is a DSH Web plugin. It registers a DSH `LlmAdapter`
+This plugin supports DSH Web and Desktop. It registers a DSH `LlmAdapter`
 under provider route `antigravity`, stores OAuth credentials under DSH home,
-talks to the Cloud Code Assist streaming API directly, and provides full bilingual (English & Simplified Chinese) i18n support in the Web settings page.
+talks to the Cloud Code Assist streaming API directly, and provides bilingual (English & Simplified Chinese) settings.
+
+> v0.1.4 fixes endpoint failover and historical tool-call/result pairing. It changes only outgoing request conversion, not local network settings or saved session history. Missing results are labeled unavailable, never fabricated as successful.
 
 > Unofficial integration. This project is not affiliated with or endorsed by
 > Google. Use it only with accounts and services you are authorized to access.
 
-## Install into DSH Web
+## Install into DSH Web / Desktop
 
 ### Option 1: Direct from GitHub
 
 ```sh
-dsh plugin --profile web add github:LiZhenNet/dsh-antigravity
+dsh plugin --profile web add github:Lukeknow0/dsh-antigravity
+dsh plugin --profile desktop add github:Lukeknow0/dsh-antigravity
 ```
 
 ### Option 2: From Local Release Tarball
 
 ```sh
 npm run pack:dist
-dsh plugin --profile web add ./dist/dsh-antigravity-0.1.3.tgz
+dsh plugin --profile web add ./dist/dsh-antigravity-0.1.4.tgz
+dsh plugin --profile desktop add ./dist/dsh-antigravity-0.1.4.tgz
 ```
 
 The package declares a DSH bundle patch, so installation automatically mounts

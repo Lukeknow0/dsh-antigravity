@@ -8,25 +8,29 @@
 
 适用于 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的 Google Antigravity / Cloud Code Assist 模型提供商插件。
 
-这是一个 DSH Web 插件。它在 provider 路由 `antigravity` 下注册 DSH `LlmAdapter`，OAuth 凭证存储于 DSH home 目录下，直接与 Cloud Code Assist 流式 API 通信，并且 Web 设置页面完整支持中英文双语国际化（i18n）。
+这是一个适用于 DSH Web 和 Desktop 的插件。它在 provider 路由 `antigravity` 下注册 DSH `LlmAdapter`，OAuth 凭证存储于 DSH home 目录下，直接与 Cloud Code Assist 流式 API 通信，并且设置页面支持中英文双语国际化（i18n）。
+
+> v0.1.4 修复接口回退及历史工具调用/结果配对；仅修正发给上游的请求副本，不修改本地网络设置或会话记录。缺失的工具结果会标注为未完成，不会伪造成功结果。
 
 > 非官方集成。本项目与 Google 无关，亦未获得 Google 认可。请仅在您有权访问的账号和服务中使用。
 
 ---
 
-## 安装到 DSH Web
+## 安装到 DSH Web / Desktop
 
 ### 方式一：直接从 GitHub 安装
 
 ```sh
-dsh plugin --profile web add github:LiZhenNet/dsh-antigravity
+dsh plugin --profile web add github:Lukeknow0/dsh-antigravity
+dsh plugin --profile desktop add github:Lukeknow0/dsh-antigravity
 ```
 
 ### 方式二：通过本地 Release 包安装
 
 ```sh
 npm run pack:dist
-dsh plugin --profile web add ./dist/dsh-antigravity-0.1.3.tgz
+dsh plugin --profile web add ./dist/dsh-antigravity-0.1.4.tgz
+dsh plugin --profile desktop add ./dist/dsh-antigravity-0.1.4.tgz
 ```
 
 该 package 声明了 DSH bundle patch，安装后会自动挂载 host 插件与浏览器设置页面。

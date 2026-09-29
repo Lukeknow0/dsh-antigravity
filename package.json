@@ -1,6 +1,6 @@
 {
   "name": "dsh-antigravity",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Google Antigravity / Cloud Code Assist model provider for DeepSeek Harness",
   "type": "module",
   "main": "lib/index.js",
@@ -56,11 +56,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/LiZhenNet/dsh-antigravity.git"
+    "url": "git+https://github.com/Lukeknow0/dsh-antigravity.git"
   },
-  "homepage": "https://github.com/LiZhenNet/dsh-antigravity#readme",
+  "homepage": "https://github.com/Lukeknow0/dsh-antigravity#readme",
   "bugs": {
-    "url": "https://github.com/LiZhenNet/dsh-antigravity/issues"
+    "url": "https://github.com/Lukeknow0/dsh-antigravity/issues"
   },
   "peerDependencies": {
     "@deepseek-ai/dsh-home-paths": "*",
