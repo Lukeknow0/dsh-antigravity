@@ -57,7 +57,7 @@ test('caller abort is not retried or reported as a network error',async t=>{
   assert.equal(calls,0);
 });
 
-test('configured endpoint still retains fallback endpoints', async t => {
+test('configured endpoint remains pinned during a transient retry', async t => {
   const calls=[];
   const {api}=await fixture(t,async(url)=>{
     if(!url.includes('streamGenerateContent'))return json({});
@@ -67,7 +67,7 @@ test('configured endpoint still retains fallback endpoints', async t => {
   },{ANTIGRAVITY_BASE_URL:'https://daily-cloudcode-pa.googleapis.com'});
   for await(const c of api.requestAntigravityChunksWithAccount(options,model,undefined,tokens)){}
   assert.ok(calls[0].startsWith('https://daily-cloudcode-pa.googleapis.com/'));
-  assert.ok(calls[1].startsWith('https://cloudcode-pa.googleapis.com/'));
+  assert.ok(calls[1].startsWith('https://daily-cloudcode-pa.googleapis.com/'));
 });
 
 test('tool result and signature survive an endpoint retry without another tool call', async t=>{

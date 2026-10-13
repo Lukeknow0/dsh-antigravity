@@ -10,7 +10,7 @@
 
 这是一个适用于 DSH Web 和 Desktop 的插件。它在 provider 路由 `antigravity` 下注册 DSH `LlmAdapter`，OAuth 凭证存储于 DSH home 目录下，直接与 Cloud Code Assist 流式 API 通信，并且设置页面支持中英文双语国际化（i18n）。
 
-> v0.1.4 修复接口回退及历史工具调用/结果配对；仅修正发给上游的请求副本，不修改本地网络设置或会话记录。缺失的工具结果会标注为未完成，不会伪造成功结果。
+> v0.1.5 保留 Gemini 工具 Schema 引用，并加入保守请求策略、持久冷却、私密凭据写入与统一版本来源。保留 0.1.4 的历史工具调用/结果配对；不伪造成功结果，不修改会话原始定义。参见[更新记录](./CHANGELOG.md)。
 
 > 非官方集成。本项目与 Google 无关，亦未获得 Google 认可。请仅在您有权访问的账号和服务中使用。
 
@@ -29,8 +29,8 @@ dsh plugin --profile desktop add github:Lukeknow0/dsh-antigravity
 
 ```sh
 npm run pack:dist
-dsh plugin --profile web add ./dist/dsh-antigravity-0.1.4.tgz
-dsh plugin --profile desktop add ./dist/dsh-antigravity-0.1.4.tgz
+dsh plugin --profile web add ./dist/dsh-antigravity-0.1.5.tgz
+dsh plugin --profile desktop add ./dist/dsh-antigravity-0.1.5.tgz
 ```
 
 该 package 声明了 DSH bundle patch，安装后会自动挂载 host 插件与浏览器设置页面。
@@ -61,8 +61,8 @@ dsh web
 
 打开 **设置（Settings）> Antigravity**，支持添加和管理多个 Google 账号：
 
-- **智能均衡（默认推荐）**：自动挑选剩余配额最健康的账号发起请求。
-- **429 无感故障转移（Failover）**：当某一账号达到短期速率限制或配额耗尽时，毫秒级自动切换至备用账号重试，前端零感知报错。
+- **健康账号选择**：在新请求开始前选择可用账号；手动模式只使用指定账号，冷却中或授权暂停的账号不进入候选列表。
+- **限流与拒绝即停止**：429 按服务端等待时间暂停整个提供商的后续请求（未给出时间时默认 60 秒），当前调用不换账号或端点继续。401/403 暂停该账号授权，需重新登录恢复。已被接受的并发请求可能继续完成，后续尝试会检查暂停状态。
 - **无损向后兼容**：初次升级将自动把原 `antigravity-oauth.json` 迁移为账号池主账号，无需重新登录。
 - **前端生图工具集成**：注册 `antigravity_image_generate` 工具，主模型编写前端代码时可直接在后台调起 `gemini-3.1-flash-image` 生成插画素材并自动保存至 `./assets/images`。
 
@@ -103,6 +103,34 @@ $DSH_HOME/storages/antigravity-pool-accounts.json
 插件会在可用时通过实时的 `fetchAvailableModels` 目录将这些公开 ID 解析为内部运行时模型 ID，并自带静态路由兜底。
 
 ---
+
+## 请求策略与工具兼容边界
+
+每次生成最多 **2 次 HTTP 尝试**，重试前至少等待 1 秒，并遵守更长的有效 `Retry-After`／Google `RetryInfo`。只有网络故障和 500/502/503/504 在取得成功流式响应前允许有限重试。成功响应开始后断流或输出不完整，直接返回错误，不自动重放。请求 ID 保持一致，但不能保证上游据此去重。显式 `ANTIGRAVITY_BASE_URL` 固定入口；拒绝后不暗中换模型，也不追加 sandbox 入口。额度与目录查询采用顺序、有界请求。
+
+Gemini 保留 `$defs`／`definitions`、本地 `$ref`、组合与嵌套结构。缺失引用、外部引用或锚点引用会在本地明确失败，不联网取回。预检预算为 128 层 JSON 嵌套、50,000 个访问数据单元、所有声明合计 2 MiB；预检不是完整的 JSON Schema 元验证器。
+
+Claude／GPT-OSS 使用受限 Legacy 格式：基本类型、properties、required、items、description 和字符串 enum；本地引用有界展开。可空单类型沿用旧适配器的非 null 类型转换。无法安全表达的验证约束、多分支类型、元组或递归结构会**明确报错，不再静默删除**。复杂 MCP 工具集可能需要使用 Gemini，或在宿主中关闭不兼容的声明。
+
+凭据通过原子写入替换，支持的系统上权限为 `0600`，拒绝符号链接目标。普通请求日志不输出 token、聊天内容、工具参数或邮箱。CLI 登录链接仅为本地用户完成授权而显示，重定向的登录输出也需保密。设置页仍显示邮箱以识别账号，生成工具结果改用内部 ID。
+
+**风险说明**：这属于可靠性和隐私保护，不是身份伪装或“防封”。Google 仍能关联 OAuth 账号和请求；不绕过授权、地区或配额限制。暂停状态可跨重启保存，但多个独立运行的宿主并不是分布式统一配额控制器。
+
+## 升级与回滚
+
+Web 与 Desktop 是两个独立安装的 profile。升级实际使用的 profile，再使用宿主正常机制重载插件。GitHub 发布不会自动更新本地安装。
+
+旧文件若曾原地修补，功能代码可能比安装包版本标签更新。0.1.5 的状态 API、诊断和请求日志统一读取包版本；安装完整 Release 可避免元数据混用。安装前私密备份凭据。[0.1.4 Release](https://github.com/Lukeknow0/dsh-antigravity/releases/tag/v0.1.4) 保留供回滚，回滚后也会恢复旧的较宽松重试策略。
+
+开发验证均离线执行：
+
+```sh
+npm test
+npm run check
+npm run pack:dist
+```
+
+测试覆盖文本／图片拒绝处理、引用 Schema、冷却持久化与凭据存储，不使用真实 Google 账号或生产模型请求；不能据此保证未来所有上游版本兼容。
 
 ## 许可证
 

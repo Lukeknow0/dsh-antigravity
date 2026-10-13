@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import vm from 'node:vm';
 import { convertToolDeclarations, ToolSchemaError } from '../lib/tool-schema.js';
 
 const tool = parameters => ({ name: 'inspect_address', description: 'Inspect an address', parameters });
@@ -119,9 +120,14 @@ test('legacy conversion expands local references and supports nullable single ty
   assert.equal(declaration.parameters.$defs, undefined);
 });
 
-test('legacy conversion rejects lossy validation constraints', () => {
+test('legacy conversion preserves supported string enums', () => {
+  const [declaration] = convertToolDeclarations([tool({ type: 'string', enum: ['small', 'large'] })], true);
+  assert.deepEqual(declaration.parameters, { type: 'string', enum: ['small', 'large'] });
+});
+
+test('legacy conversion rejects non-string enums and lossy validation constraints', () => {
   errorFor(() => convertToolDeclarations([tool({ type: 'object', properties: { age: { type: 'integer', minimum: 0 } } })], true), '/parameters/properties/age/minimum');
-  errorFor(() => convertToolDeclarations([tool({ type: 'string', enum: ['a', 'b'] })], true), '/parameters/enum');
+  errorFor(() => convertToolDeclarations([tool({ type: 'number', enum: [1, 2] })], true), '/parameters/enum');
 });
 
 test('legacy conversion rejects unions and recursive references instead of erasing them', () => {
@@ -137,6 +143,73 @@ test('prototype-named reference tokens resolve only own keys', () => {
   assert.equal(Object.getPrototypeOf(declaration.parametersJsonSchema.properties), Object.prototype);
 });
 
+test('cross-realm plain tool and schema objects are accepted', () => {
+  const foreignTool = vm.runInNewContext(`({ name: 'foreign', parameters: { type: 'object', properties: { value: { type: 'string' } } } })`);
+  const [declaration] = convertToolDeclarations([foreignTool]);
+  assert.equal(declaration.name, 'foreign');
+  assert.equal(declaration.parametersJsonSchema.properties.value.type, 'string');
+});
+
+test('reference validation follows legacy dependencies and additionalItems schemas', () => {
+  errorFor(() => convertToolDeclarations([tool({
+    type: 'object',
+    dependencies: { trigger: { $ref: '#/$defs/missing' } },
+    $defs: {},
+  })]), '/parameters/dependencies/trigger/$ref');
+  errorFor(() => convertToolDeclarations([tool({
+    type: 'array',
+    items: [{ type: 'string' }],
+    additionalItems: { $ref: '#/$defs/missing' },
+    $defs: {},
+  })]), '/parameters/additionalItems/$ref');
+});
+
+test('references inside an embedded $id resource resolve from that resource root', () => {
+  const parameters = {
+    type: 'object',
+    properties: {
+      nested: {
+        $id: 'https://example.test/nested.json',
+        type: 'object',
+        properties: { value: { $ref: '#/$defs/value' } },
+        $defs: { value: { type: 'string' } },
+      },
+    },
+  };
+  assert.doesNotThrow(() => convertToolDeclarations([tool(parameters)]));
+  const wrongRoot = structuredClone(parameters);
+  delete wrongRoot.properties.nested.$defs;
+  wrongRoot.$defs = { value: { type: 'number' } };
+  errorFor(() => convertToolDeclarations([tool(wrongRoot)]), '/parameters/properties/nested/properties/value/$ref');
+});
+
+test('pre-recursion budgets reject deeply nested input with a schema error', () => {
+  let nested = { type: 'string' };
+  for (let index = 0; index < 20_000; index++) nested = { items: nested };
+  errorFor(() => convertToolDeclarations([tool(nested)]));
+});
+
+test('legacy reference expansion remains bounded for repeated references', () => {
+  const definitions = {};
+  let childName = 'leaf';
+  definitions.leaf = { type: 'string' };
+  for (let level = 0; level < 6; level++) {
+    const name = `level${level}`;
+    const properties = {};
+    for (let index = 0; index < 8; index++) properties[`child${index}`] = { $ref: `#/$defs/${childName}` };
+    definitions[name] = { type: 'object', properties };
+    childName = name;
+  }
+  errorFor(() => convertToolDeclarations([tool({
+    type: 'object', properties: { tree: { $ref: `#/$defs/${childName}` } }, $defs: definitions,
+  })], true));
+});
+
+test('local-only tool execution metadata is never serialized to model declarations', () => {
+  const [result] = convertToolDeclarations([{name:'local',parameters:{type:'object'},execute(){},output:{render(){}}}]);
+  assert.equal(result.parametersJsonSchema.type,'object');
+  assert.equal(Object.hasOwn(result,'execute'),false);
+});
 test('invalid tool metadata fails with a tool pointer and never echoes schema values', () => {
   assert.throws(() => convertToolDeclarations([{ name: 'safe', parameters: 'SECRET_SCHEMA_VALUE' }]), error => {
     assert.equal(error.code, 'INVALID_TOOL_SCHEMA');

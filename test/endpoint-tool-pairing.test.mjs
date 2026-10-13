@@ -18,7 +18,7 @@ async function stream(api, messages) {
   return chunks;
 }
 
-test('429 on primary falls back to non-sandbox daily endpoint', async t => {
+test('429 on primary stops instead of trying a different endpoint', async t => {
   const hosts = [];
   const { api } = await fixture(t, async url => {
     if (!url.includes('streamGenerateContent')) return json({});
@@ -27,12 +27,11 @@ test('429 on primary falls back to non-sandbox daily endpoint', async t => {
     return host === 'cloudcode-pa.googleapis.com'
       ? failure(429, 'Resource has been exhausted') : complete();
   });
-  const chunks = await stream(api, [{ role: 'user', content: [text('hello')] }]);
-  assert.deepEqual(hosts, ['cloudcode-pa.googleapis.com', 'daily-cloudcode-pa.googleapis.com']);
-  assert.ok(chunks.some(chunk => chunk.type === 'text-delta'));
+  await assert.rejects(() => stream(api, [{ role: 'user', content: [text('hello')] }]), error => error.code === 'RATE_LIMIT');
+  assert.deepEqual(hosts, ['cloudcode-pa.googleapis.com']);
 });
 
-test('sandbox location denial does not replace earlier quota error', async t => {
+test('quota errors do not cause requests to sandbox endpoints', async t => {
   const hosts = [];
   const { api } = await fixture(t, async url => {
     if (!url.includes('streamGenerateContent')) return json({});
@@ -44,7 +43,8 @@ test('sandbox location denial does not replace earlier quota error', async t => 
   });
   await assert.rejects(() => stream(api, [{ role: 'user', content: [text('hello')] }]),
     error => error.code === 'RATE_LIMIT' && /429/.test(error.message));
-  assert.equal(hosts.filter(host => host.includes('sandbox.googleapis.com')).length, 1);
+  assert.equal(hosts.filter(host => host.includes('sandbox.googleapis.com')).length, 0);
+  assert.equal(hosts.length, 1);
 });
 
 test('missing tool result is explicitly marked before later user text', async t => {

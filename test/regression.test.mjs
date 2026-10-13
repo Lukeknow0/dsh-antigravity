@@ -46,14 +46,14 @@ test('auto scheduling uses actual quota buckets including weekly exhaustion', as
   assert.equal((await pool.getCandidateAccounts())[0].email, 'healthy');
 });
 
-test('primary in cooldown appears only once after healthy backup', async t => {
+test('primary in cooldown never appears after a healthy backup', async t => {
   const { Pool } = await fixture(t);
   const pool = new Pool();
   await pool.addOrUpdateAccount(credential('primary'));
   await pool.addOrUpdateAccount(credential('backup'));
   await pool.updateConfig({ schedulingMode: 'primary-backup' });
   await pool.markCooldown(pool.allAccounts[0].id);
-  assert.deepEqual(Array.from(await pool.getCandidateAccounts(), a => a.email), ['backup', 'primary']);
+  assert.deepEqual(Array.from(await pool.getCandidateAccounts(), a => a.email), ['backup']);
 });
 
 test('refresh preserves dynamically discovered models from other accounts and user selection', async t => {
@@ -156,7 +156,7 @@ test('refresh failure is visible per account and keeps last successful timestamp
   fail = true;
   await assert.rejects(api.fetchQuotaForAccount(account, pool));
   const failed = (await pool.getStatus()).accounts[0];
-  assert.match(failed.quotaError, /upstream unavailable/);
+  assert.match(failed.quotaError, /NETWORK_ERROR/);
   assert.equal(failed.quota.fetchedAt, first.fetchedAt);
   assert.equal(failed.quotaStale, true);
   fail = false;
