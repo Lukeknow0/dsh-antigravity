@@ -6,7 +6,8 @@
 - Preserve Gemini JSON Schema definitions, local references and composed/nested schemas. Preflight invalid references before OAuth/catalog requests; never mutate shared tool definitions.
 - Bound schema cloning and Legacy reference expansion; accept plain objects across execution realms; distinguish schema keywords from user property names.
 - Use package metadata as the single version source for status, diagnostics and request traces.
-- Coalesce concurrent token refreshes and retain account cooldowns when credentials refresh.
+- Coalesce concurrent token/project/model lookups with active-consumer ownership: cancel orphaned work, retain work for other callers, and preserve account cooldowns when credentials refresh.
+- Preserve terminal HTTP status and Retry-After even when the error response body is unreadable; a body reset cannot turn 401/403/429 into an endpoint retry.
 
 ### Safety-oriented behavior changes
 - A generation request has at most two pre-stream HTTP attempts, with delayed retries only for transport failures or HTTP 500/502/503/504. A successful HTTP response is never replayed after a stream failure.
