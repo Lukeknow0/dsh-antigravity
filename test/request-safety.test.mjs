@@ -71,6 +71,21 @@ test('Gemini tool definitions survive request serialization without mutation',as
   assert.equal(body.request.tools[0].functionDeclarations[0].parametersJsonSchema.$defs.address.type,'string');
   assert.equal(JSON.stringify(parameters),saved);
 });
+test('caller cancellation returns immediately while shared discovery is pending',async t=>{
+  let release, ready;
+  const started=new Promise(resolve=>{ready=resolve;});
+  const metadata=new Promise(resolve=>{release=resolve;});
+  const {api}=await fixture(t,async()=>{ready();return metadata;});
+  const controller=new AbortController();
+  let settled=false, failure;
+  const pending=consume(api,controller.signal).catch(error=>{settled=true;failure=error;});
+  try {
+    await started;controller.abort();
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(settled,true);
+    assert.equal(failure.code,'ABORTED');
+  } finally {release(json({}));await pending;}
+});
 test('SSE quota errors preserve status and server wait information',async t=>{
   const {api}=await fixture(t,async url=>{
     if(!url.includes('streamGenerateContent'))return json({});
