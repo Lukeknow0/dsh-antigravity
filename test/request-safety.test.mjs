@@ -93,11 +93,11 @@ test('SSE quota errors preserve status and server wait information',async t=>{
   });
   await assert.rejects(consume(api),e=>e.status===429 && e.cooldownMs===180000);
 });
-test('a new provider pause stops an already scheduled generation retry',async t=>{
+test('account cooldown stops an already scheduled generation retry',async t=>{
   let attempts=0;let pool;
   const {api,Pool}=await fixture(t,async url=>{
     if(!url.includes('streamGenerateContent'))return json({});
-    attempts++;await pool.pauseRequests(60000);
+    attempts++;await pool.markCooldown(pool.allAccounts[0].id,60000);
     return new Response('{"error":{"message":"temporary"}}',{status:503});
   });
   pool=new Pool();await pool.addOrUpdateAccount(credential('a'));

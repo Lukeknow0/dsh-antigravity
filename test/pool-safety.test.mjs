@@ -19,19 +19,10 @@ test('manual candidates contain only the specified account',async t=>{
   await pool.updateConfig({schedulingMode:'manual',activeAccountId:pool.allAccounts[1].id});
   assert.deepEqual(Array.from(await pool.getCandidateAccounts(),a=>a.email),['b']);
 });
-test('provider pause persists across instances and survives relogin',async t=>{
-  const {Pool}=await fixture(t);const pool=new Pool();
-  await pool.addOrUpdateAccount(credential('a'));await pool.pauseRequests(120000);
-  await pool.addOrUpdateAccount(credential('a'));
-  const reloaded=new Pool();
-  assert.equal((await reloaded.getCandidateAccounts()).length,0);
-  assert.ok((await reloaded.getStatus()).requestPauseRemainingMs > 110000);
-});
 test('concurrent cooldown changes cannot shorten an existing wait',async t=>{
   const {Pool}=await fixture(t);const pool=new Pool();await pool.addOrUpdateAccount(credential('a'));
-  await Promise.all([pool.pauseRequests(120000),pool.pauseRequests(60000)]);
   await Promise.all([pool.markCooldown(pool.allAccounts[0].id,120000),pool.markCooldown(pool.allAccounts[0].id,1000)]);
-  assert.ok((await pool.getStatus()).requestPauseRemainingMs > 110000);
+  assert.equal((await pool.getStatus()).requestPauseRemainingMs,0);
   assert.ok((await pool.getStatus()).accounts[0].cooldownRemainingMs > 110000);
 });
 test('suspended account remains unavailable until reauthorization',async t=>{
@@ -57,9 +48,9 @@ for(const status of [403,429]){
     assert.equal(hits.length,1);
     const state=await pool.getStatus();
     if(status===429){
-      assert.ok(state.requestPauseRemainingMs > 110000);
-      await assert.rejects(run(),e=>e.code==='RATE_LIMIT');
-      assert.equal(hits.length,1);
+      assert.equal(state.requestPauseRemainingMs,0);
+      assert.ok(state.accounts[0].cooldownRemainingMs>110000);
+      assert.deepEqual(Array.from(await pool.getCandidateAccounts(),a=>a.email),['b']);
     }else assert.equal(state.accounts[0].suspended,true);
   });
 }

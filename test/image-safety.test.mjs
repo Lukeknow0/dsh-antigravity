@@ -14,7 +14,7 @@ for(const status of [403,429]){
     await assert.rejects(api.generateImageThroughPool('picture',pool,new api.FileModelSettingsStore()),e=>e.status===status);
     assert.equal(attempts,1);
     const state=await pool.getStatus();
-    if(status===429)assert.ok(state.requestPauseRemainingMs > 110000);
+    if(status===429){assert.equal(state.requestPauseRemainingMs,0);assert.ok(state.accounts[0].cooldownRemainingMs>110000);assert.equal(state.accounts[1].cooldownRemainingMs,0);}
     else assert.equal(state.accounts[0].suspended,true);
   });
 }

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.7 — 2026-10-14
+
+- Removed all provider-wide pause state/calls. A chat 429 cools only the current account; other healthy accounts remain selectable. Existing account cooldowns are preserved.
+- For any HTTP 429, a server wait above 30 seconds stops immediately. A shorter positive wait or no wait permits exactly one retry on the same account and endpoint, after the stated wait or 2500ms respectively. Default account cooldown is 15000ms.
+- Quota-query 429 only records quotaError; it never cools chat requests or prevents the batch from refreshing other accounts.
+- No automatic cross-account replay. Successful generation streams are never replayed, including failures before the first visible output.
+
 ## 0.1.6 — 2026-10-14
 
 - Synchronize the real server-discovered project into the account record in the same queued save as quota metadata. Generation and quota/catalog lookup no longer retain different project bindings.

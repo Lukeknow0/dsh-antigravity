@@ -16,17 +16,17 @@ for(const status of [401,403,429]){
     await assert.rejects(run(api,pool),e=>e.status===status);
     assert.equal(requests,1);
     const state=await pool.getStatus();
-    if(status===429)assert.ok(state.requestPauseRemainingMs>110000);else assert.equal(state.accounts[0].suspended,true);
+    if(status===429){assert.equal(state.requestPauseRemainingMs,0);assert.ok(state.accounts[0].cooldownRemainingMs>110000);}else assert.equal(state.accounts[0].suspended,true);
   });
 }
-test('unreadable metadata 429 remains terminal and pauses provider',async t=>{
+test('unreadable metadata 429 records error without pausing chat',async t=>{
   let requests=0;
   const {api,Pool}=await fixture(t,async()=>{
     requests++;return new Response(new ReadableStream({start(c){c.error(new TypeError('reset'));}}),{status:429,headers:{'Retry-After':'120'}});
   });
   const pool=new Pool();await pool.addOrUpdateAccount(credential('a'));
   await assert.rejects(api.fetchQuotaForAccount(pool.allAccounts[0],pool),e=>e.status===429);
-  assert.equal(requests,1);assert.ok((await pool.getStatus()).requestPauseRemainingMs>110000);
+  assert.equal(requests,1);const state=await pool.getStatus();assert.equal(state.requestPauseRemainingMs,0);assert.equal(state.accounts[0].cooldownRemainingMs,0);assert.ok(state.accounts[0].quotaError);
 });
 test('sole cancellation aborts refresh and returns without waiting for token response',async t=>{
   let release,ready,fetchSignal;

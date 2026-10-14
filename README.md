@@ -13,6 +13,8 @@ This plugin supports DSH Web and Desktop. It registers a DSH `LlmAdapter`
 under provider route `antigravity`, stores OAuth credentials under DSH home,
 talks to the Cloud Code Assist streaming API directly, and provides bilingual (English & Simplified Chinese) settings.
 
+> v0.1.7 removes account-induced global pauses and adds one same-account, same-endpoint 429 retry. See [CHANGELOG](./CHANGELOG.md).
+
 > v0.1.6 fixes generation/quota project-binding mismatches and stale refresh overwrites; the 0.1.5 request policy is unchanged.
 
 > v0.1.5 preserves Gemini tool schema references and adds conservative request handling, persistent cooldowns, private credential writes and one version source. Historical tool-call/result pairing from 0.1.4 is retained. See [CHANGELOG](./CHANGELOG.md).
@@ -33,8 +35,8 @@ dsh plugin --profile desktop add github:Lukeknow0/dsh-antigravity
 
 ```sh
 npm run pack:dist
-dsh plugin --profile web add ./dist/dsh-antigravity-0.1.6.tgz
-dsh plugin --profile desktop add ./dist/dsh-antigravity-0.1.6.tgz
+dsh plugin --profile web add ./dist/dsh-antigravity-0.1.7.tgz
+dsh plugin --profile desktop add ./dist/dsh-antigravity-0.1.7.tgz
 ```
 
 The package declares a DSH bundle patch, so installation automatically mounts
@@ -66,7 +68,7 @@ dsh web
 Open **Settings > Antigravity** to manage Google Antigravity accounts:
 
 - **Healthy account selection**: Chooses an available account before a new request. Manual mode uses only the selected account; cooling or suspended accounts are excluded.
-- **Stop on limits and denials**: A 429 pauses provider requests for the server-directed wait (60 seconds when none is supplied). The current request is not moved to another account or endpoint. A 401/403 suspends that account until you sign in again. Existing accepted in-flight work may finish; future attempts check the pause.
+- **Independent limits**: A 429 cools only that account. With no wait hint or a wait up to 30 seconds, one retry is allowed on the same account/endpoint; a longer wait stops immediately. Default cooldown is 15 seconds. Quota-query 429 records a quota error without cooling chat. A 401/403 suspends the affected account until reauthorization.
 - **Backward Compatible**: Automatically migrates existing single `antigravity-oauth.json` into Account 1.
 - **Frontend Image Generation Tool**: Integrates `antigravity_image_generate` to automatically generate web illustrations using `gemini-3.1-flash-image` into `./assets/images`.
 
@@ -111,7 +113,7 @@ The plugin resolves these public IDs to runtime model IDs using the live
 
 ## Request policy and tool compatibility
 
-Generation performs at most **two HTTP attempts** in total, with at least a one-second wait before a retry, respecting longer valid `Retry-After`/Google `RetryInfo` hints. Only transport failures and HTTP 500/502/503/504 can retry before a successful streaming response. Once a successful response starts, a broken/partial stream is returned as an error, never automatically replayed. A stable request ID is used, but upstream deduplication is not guaranteed. An explicit `ANTIGRAVITY_BASE_URL` pins the endpoint; no implicit sandbox fallback or model switch is used after a denial. Quota/model discovery is sequential and bounded.
+Generation performs at most **two HTTP attempts**. A 429 with a server wait above 30 seconds is not retried. Otherwise it retries once on the same account and endpoint after the given wait or 2500ms when none is supplied. Transport/500/502/503/504 retries retain their previous behavior. Once a successful response starts, a broken/partial stream is returned as an error, never replayed. An explicit `ANTIGRAVITY_BASE_URL` remains pinned. There is no automatic cross-account retry; choose another account manually or let a new request choose a healthy one.
 
 Gemini receives intact `$defs`/`definitions`, local `$ref` and nested/composed schemas. Bad/local-missing/external/anchor references fail locally, without network fetching. Preflight is bounded (128 JSON nesting levels, 50,000 visited data units and 2 MiB across declarations) and is not a complete JSON Schema validator.
 
@@ -119,7 +121,7 @@ Claude/GPT-OSS use restricted Legacy declarations: basic types, properties, requ
 
 Credential files are atomically replaced with mode `0600` where supported; symlink destinations are refused. Ordinary request logs omit tokens, prompts, tool payloads and email addresses. The CLI sign-in link is deliberately displayed to the local user for authorization; keep redirected login output private. Local settings show emails to help identify accounts, but generation tool results use internal IDs.
 
-**Scope:** these are reliability/privacy protections, not client-identity camouflage or a guarantee against account restrictions. Google can still associate requests with OAuth credentials. No authorization, region or quota restrictions are bypassed. Pause persistence survives restart; independent simultaneously running plugin hosts are not a distributed shared quota controller.
+**Scope:** these are reliability/privacy protections, not client-identity camouflage or a guarantee against account restrictions. Google can still associate requests with OAuth credentials. No authorization, region or quota restrictions are bypassed. Account cooldown persistence survives restart; independent simultaneously running plugin hosts are not a distributed shared quota controller.
 
 ## Upgrade and rollback
 

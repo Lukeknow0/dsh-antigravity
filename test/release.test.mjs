@@ -24,23 +24,23 @@ test('package, diagnostics and status use one release version',async t=>{
   const result=await router(api)();
   assert.equal(result.body.value.version,pkg.version);
 });
-test('status exposes provider cooldown and suspended state without tokens',async t=>{
+test('status exposes account cooldown and suspension without tokens',async t=>{
   const {api,Pool}=await fixture(t);const pool=new Pool();
   await pool.addOrUpdateAccount(credential('local@example.test'));
-  await pool.pauseRequests(120000);await pool.suspendAccount(pool.allAccounts[0].id);
+  await pool.markCooldown(pool.allAccounts[0].id,120000);await pool.suspendAccount(pool.allAccounts[0].id);
   const {body}=await router(api)();
-  assert.ok(body.value.requestPauseRemainingMs>110000);
+  assert.equal(body.value.requestPauseRemainingMs,0);assert.ok(body.value.accounts[0].cooldownRemainingMs>110000);
   assert.equal(body.value.accounts[0].suspended,true);
   assert.doesNotMatch(JSON.stringify(body),/test-refresh|"access"|"refresh"/);
 });
-test('quota refresh route stops account fanout after a limit response',async t=>{
+test('quota refresh continues other accounts after one account hits a limit',async t=>{
   let requests=0;
   const {api,Pool}=await fixture(t,async()=>{
     requests++;return new Response('{"error":{"message":"limited"}}',{status:429});
   });
   const pool=new Pool();await pool.addOrUpdateAccount(credential('a'));await pool.addOrUpdateAccount(credential('b'));
   await router(api)('/quota','POST');
-  assert.equal(requests,1);
+  assert.equal(requests,4);
 });
 test('settings explain stop-on-limit behavior instead of instant account rotation',async()=>{
   const source=await readFile(new URL('../lib/client.js',import.meta.url),'utf8');

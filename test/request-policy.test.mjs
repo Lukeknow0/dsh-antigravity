@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { classifyHttpFailure, waitForRetry } from '../lib/request-policy.js';
 
-for (const status of [400, 401, 403, 404, 408, 409, 418, 429]) {
+for (const status of [400, 401, 403, 404, 408, 409, 418]) {
   test(`${status} is never an endpoint-failover reason`, () => {
     const p = classifyHttpFailure(status, '{}', new Headers(), 1000);
     assert.equal(p.retryable, false);
@@ -32,13 +32,14 @@ test('uses the longest explicit RetryInfo and header, defaulting when neither is
   ]}});
   const p = classifyHttpFailure(429, text, new Headers({'Retry-After':'60'}), 1000);
   assert.equal(p.cooldownMs, 180500);
-  assert.equal(classifyHttpFailure(429, '{}', {'Retry-After':'-1'}, 1000).cooldownMs, 60000);
-  assert.equal(classifyHttpFailure(429, '{}', {'Retry-After':'nonsense'}, 1000).cooldownMs, 60000);
+  assert.equal(classifyHttpFailure(429, '{}', {'Retry-After':'-1'}, 1000).cooldownMs, 15000);
+  assert.equal(classifyHttpFailure(429, '{}', {'Retry-After':'nonsense'}, 1000).cooldownMs, 15000);
 });
-test('quota response is explicit and does not become retryable', () => {
+test('quota response without a wait permits one bounded retry', () => {
   const p = classifyHttpFailure(429, '{"error":{"message":"Individual quota reached"}}', new Headers());
   assert.equal(p.code, 'QUOTA_EXCEEDED');
-  assert.equal(p.retryable, false);
+  assert.equal(p.retryable, true);
+  assert.equal(p.retryDelayMs, 2500);
 });
 test('server Retry-After applies to transient retry delay', () => {
   assert.equal(classifyHttpFailure(503, '{}', {'Retry-After':'5'}, 1000).retryDelayMs, 5000);

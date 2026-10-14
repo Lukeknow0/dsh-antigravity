@@ -18,7 +18,7 @@ async function stream(api, messages) {
   return chunks;
 }
 
-test('429 on primary stops instead of trying a different endpoint', async t => {
+test('429 on primary retries once without trying a different endpoint', async t => {
   const hosts = [];
   const { api } = await fixture(t, async url => {
     if (!url.includes('streamGenerateContent')) return json({});
@@ -28,7 +28,7 @@ test('429 on primary stops instead of trying a different endpoint', async t => {
       ? failure(429, 'Resource has been exhausted') : complete();
   });
   await assert.rejects(() => stream(api, [{ role: 'user', content: [text('hello')] }]), error => error.code === 'RATE_LIMIT');
-  assert.deepEqual(hosts, ['cloudcode-pa.googleapis.com']);
+  assert.deepEqual(hosts, ['cloudcode-pa.googleapis.com', 'cloudcode-pa.googleapis.com']);
 });
 
 test('quota errors do not cause requests to sandbox endpoints', async t => {
@@ -44,7 +44,7 @@ test('quota errors do not cause requests to sandbox endpoints', async t => {
   await assert.rejects(() => stream(api, [{ role: 'user', content: [text('hello')] }]),
     error => error.code === 'RATE_LIMIT' && /429/.test(error.message));
   assert.equal(hosts.filter(host => host.includes('sandbox.googleapis.com')).length, 0);
-  assert.equal(hosts.length, 1);
+  assert.equal(hosts.length, 2);
 });
 
 test('missing tool result is explicitly marked before later user text', async t => {
