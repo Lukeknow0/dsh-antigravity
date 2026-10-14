@@ -10,6 +10,8 @@
 
 这是一个适用于 DSH Web 和 Desktop 的插件。它在 provider 路由 `antigravity` 下注册 DSH `LlmAdapter`，OAuth 凭证存储于 DSH home 目录下，直接与 Cloud Code Assist 流式 API 通信，并且设置页面支持中英文双语国际化（i18n）。
 
+> v0.1.6 修复生成请求与额度查询项目绑定不一致，以及旧凭据刷新覆盖真实项目的问题；0.1.5 的请求策略保持不变。
+
 > v0.1.5 保留 Gemini 工具 Schema 引用，并加入保守请求策略、持久冷却、私密凭据写入与统一版本来源。保留 0.1.4 的历史工具调用/结果配对；不伪造成功结果，不修改会话原始定义。参见[更新记录](./CHANGELOG.md)。
 
 > 非官方集成。本项目与 Google 无关，亦未获得 Google 认可。请仅在您有权访问的账号和服务中使用。
@@ -29,8 +31,8 @@ dsh plugin --profile desktop add github:Lukeknow0/dsh-antigravity
 
 ```sh
 npm run pack:dist
-dsh plugin --profile web add ./dist/dsh-antigravity-0.1.5.tgz
-dsh plugin --profile desktop add ./dist/dsh-antigravity-0.1.5.tgz
+dsh plugin --profile web add ./dist/dsh-antigravity-0.1.6.tgz
+dsh plugin --profile desktop add ./dist/dsh-antigravity-0.1.6.tgz
 ```
 
 该 package 声明了 DSH bundle patch，安装后会自动挂载 host 插件与浏览器设置页面。

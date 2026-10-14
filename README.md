@@ -13,6 +13,8 @@ This plugin supports DSH Web and Desktop. It registers a DSH `LlmAdapter`
 under provider route `antigravity`, stores OAuth credentials under DSH home,
 talks to the Cloud Code Assist streaming API directly, and provides bilingual (English & Simplified Chinese) settings.
 
+> v0.1.6 fixes generation/quota project-binding mismatches and stale refresh overwrites; the 0.1.5 request policy is unchanged.
+
 > v0.1.5 preserves Gemini tool schema references and adds conservative request handling, persistent cooldowns, private credential writes and one version source. Historical tool-call/result pairing from 0.1.4 is retained. See [CHANGELOG](./CHANGELOG.md).
 
 > Unofficial integration. This project is not affiliated with or endorsed by
@@ -31,8 +33,8 @@ dsh plugin --profile desktop add github:Lukeknow0/dsh-antigravity
 
 ```sh
 npm run pack:dist
-dsh plugin --profile web add ./dist/dsh-antigravity-0.1.5.tgz
-dsh plugin --profile desktop add ./dist/dsh-antigravity-0.1.5.tgz
+dsh plugin --profile web add ./dist/dsh-antigravity-0.1.6.tgz
+dsh plugin --profile desktop add ./dist/dsh-antigravity-0.1.6.tgz
 ```
 
 The package declares a DSH bundle patch, so installation automatically mounts

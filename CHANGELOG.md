@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.6 — 2026-10-14
+
+- Synchronize the real server-discovered project into the account record in the same queued save as quota metadata. Generation and quota/catalog lookup no longer retain different project bindings.
+- Repair a missing or legacy generated fallback project from explicitly authoritative cached metadata or project discovery before generating; do not trust unmarked legacy quota project IDs or overwrite an explicit environment override.
+- Prevent delayed credential refresh snapshots from overwriting a newer project binding. Access/refresh token updates and cooldowns retain their existing behavior.
+- This is a narrow binding fix: no changes to endpoint selection, 429 handling, account rotation, or model permissions. It does not establish that every 429 has this cause.
+
 ## 0.1.5 — 2026-10-13
 
 ### Fixed

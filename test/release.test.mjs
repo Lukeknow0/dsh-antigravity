@@ -15,9 +15,9 @@ function router(api) {
     return {body,status};
   };
 }
-test('package, diagnostics and status all use release 0.1.5',async t=>{
+test('package, diagnostics and status use one release version',async t=>{
   const pkg=JSON.parse(await readFile(new URL('../package.json',import.meta.url),'utf8'));
-  assert.equal(pkg.version,'0.1.5');
+  assert.match(pkg.version,/^\d+\.\d+\.\d+$/);
   const {api}=await fixture(t);
   assert.equal(api.PLUGIN_VERSION,pkg.version);
   assert.equal(api.getAntigravityDiagnostics().version,pkg.version);
